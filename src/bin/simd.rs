@@ -1,10 +1,9 @@
-#![feature(portable_simd)]
+#![cfg_attr(feature = "simd", feature(portable_simd))]
 
-mod types;
-mod io;
-mod compositor;
-mod write;
-
+use video_recompositor::compositor;
+use video_recompositor::io;
+use video_recompositor::types;
+use video_recompositor::write;
 use std::fs;
 use std::time::Instant;
 
@@ -30,12 +29,12 @@ fn init_rayon() {
 fn main() {
     init_rayon();
 
-    let input_path  = "video.rvid";
-    let output_path = "output.rvid";
+    let input_path  = "input/video.rvid";
+    let output_path = "output/output.rvid";
 
     // read rules.json
     let rules: types::Rules = serde_json::from_str(
-        &fs::read_to_string("rules.json").expect("Failed to read rules.json")
+        &fs::read_to_string("input/rules.json").expect("Failed to read rules.json")
     ).expect("Failed to parse rules.json");
 
     let now = Instant::now();

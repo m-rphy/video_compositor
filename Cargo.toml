@@ -12,3 +12,15 @@ memmap2 = "0.9.5"
 mimalloc = { version = "0.1", default-features = false }
 num_cpus = "1.16"  
 
+[features]
+default = []
+simd = []
+
+[[bin]]
+name = "scalar"
+path = "src/bin/scalar.rs"
+
+[[bin]]
+name = "simd"
+path = "src/bin/simd.rs"
+required-features = ["simd"] # <‑‑ *only* compile when the feature is on

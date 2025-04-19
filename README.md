@@ -15,22 +15,20 @@ cd video_recompositor
 # 0 run pre-built versions
 
 ```bash
+
 ./src/bin/{{scalar/smid}}
 ```
 
 # 1 compile the scalar, stable build (always works)
 
 ```bash
-cargo build --release
-./target/release/video_recompositor
+cargo run --release --bin scalar
 ```
 
 # 2 compile the SIMD, cross‑arch build (needs nightly)
 ```bash
 rustup toolchain install nightly     # once
-rustup override set nightly          # in this repo only
-cargo build --release
-./target/release/video_recompositor
+cargo +nightly run --release --features simd --bin simd
 ```
 
 | Host                                     | Build                    | Wall-time* | Peak RSS |
