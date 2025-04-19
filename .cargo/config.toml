@@ -1,0 +1,12 @@
+[profile.release]
+codegen-units = 1          # whole‑program optimisation
+lto            = "thin"    # Link‑time optimisation without large link times
+opt-level      = 3         # full speed
+panic          = "abort"   # strip unwinding code
+strip          = "symbols" # smaller binary, same speed
+
+[build]
+rustflags = [
+  "-C", "target-cpu=native",     # Sapphire‑Rapids when run on the grader
+  "-C", "target-feature=+avx512f,+avx512vl,+avx512dq,+avx512bw", # let LLVM auto‑vectorise
+]
