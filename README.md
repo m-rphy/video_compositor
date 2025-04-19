@@ -7,25 +7,24 @@
 
 ## Quick start
 
+Put `.rvid` data and `.json` rules in `/input` directory.
+Please make sure they are named `video.rvid` and `rules.json`
+
+The output data will be raw binary that is put in the `/output` directory 
+with the name `output.rvid`.
+
 ```bash
 git clone …
 cd video_recompositor
 ```
 
-# 0 run pre-built versions
-
-```bash
-
-./src/bin/{{scalar/smid}}
-```
-
-# 1 compile the scalar, stable build (always works)
+## Compile the scalar, stable build cross-arch build (always works)
 
 ```bash
 cargo run --release --bin scalar
 ```
 
-# 2 compile the SIMD, cross‑arch build (needs nightly)
+## Compile the SIMD, cross‑arch build (needs nightly)
 ```bash
 rustup toolchain install nightly     # once
 cargo +nightly run --release --features simd --bin simd
