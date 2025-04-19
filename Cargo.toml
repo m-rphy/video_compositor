@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-image = "0.24"
-byteorder = "1.5" # for reading/writing big-endian integers
+byteorder = "1.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-rayon = "1.10" # for multithreaded frame processing
-safe_arch = "0.6" # access to portable SIMD
+rayon = "1.10"
 memmap2 = "0.9.5"
+mimalloc = { version = "0.1", default-features = false }
+num_cpus = "1.16"  
+
