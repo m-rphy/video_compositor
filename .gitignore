@@ -1,3 +1,4 @@
 /target
-*.rvid
 /frames
+*.rvid
+*.json
