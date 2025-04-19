@@ -18,29 +18,34 @@ pub fn composite_frames(
     input.par_iter().map(|frame| {
         let mut out = vec![0u8; frame_size];
 
+        let frame_stride = in_width  as usize * 3;
+        let out_stride   = out_width as usize * 3;
+
         for rule in &rules_sorted {
             let [sx, sy, sw, sh] = rule.src;
-            let [dx, dy] = rule.dest;
-            let alpha = rule.alpha;
-
+            let [dx, dy]         = rule.dest;
+            if sx >= in_width || sy >= in_height { continue; }
+        
+            let a     = (rule.alpha * 255.0 + 0.5) as u16;
+            let inv_a = 255 - a;
+            let opaque = a == 255;
+        
             for y in 0..sh {
-                for x in 0..sw {
-                    let src_x = (sx + x) as usize;
-                    let src_y = (sy + y) as usize;
-                    let dst_x = (dx + x) as usize;
-                    let dst_y = (dy + y) as usize;
-
-                    if src_x >= in_width as usize || src_y >= in_height as usize { continue; }
-                    if dst_x >= out_width || dst_y >= out_height { continue; }
-
-                    let src_i = (src_y * in_width as usize + src_x) * 3;
-                    let dst_i = (dst_y * out_width + dst_x) * 3;
-
-                    for c in 0..3 {
-                        let src_val = frame[src_i + c] as f32;
-                        let dst_val = out[dst_i + c] as f32;
-                        let blended = (src_val * alpha + dst_val * (1.0 - alpha)).min(255.0);
-                        out[dst_i + c] = blended as u8;
+                let src_row = (sy + y) as usize * frame_stride + sx as usize * 3;
+                let dst_row = (dy + y) as usize * out_stride  + dx as usize * 3;
+        
+                let src = &frame[src_row .. src_row + sw as usize * 3];
+                let dst = &mut out[dst_row .. dst_row + sw as usize * 3];
+        
+                if opaque {
+                    dst.copy_from_slice(src);           //  fast path
+                } else {
+                    for (s, d) in src.chunks_exact(3).zip(dst.chunks_exact_mut(3)) {
+                        for c in 0..3 {
+                            let sc = s[c] as u16;
+                            let dc = d[c] as u16;
+                            d[c] = (((sc * a + dc * inv_a) + 127) / 255) as u8;
+                        }
                     }
                 }
             }
