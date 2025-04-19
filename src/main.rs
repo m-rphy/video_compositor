@@ -3,33 +3,40 @@ mod io;
 mod compositor;
 mod write;
 
-use std::fs;
-use types::*;
-use std::time::Instant;
+use std::{fs, time::Instant};
+use crate::types::*;
+use crate::io::read_raw_video_mmap;
 
 fn main() {
-    let input_path = "video.rvid"; 
-    let output_path = "output.rvid"; 
+    let input_path      = "video.rvid";
+    let output_path     = "output.rvid";
+    let png_output_dir  = "frames";
 
+    // load rules
     let rules: Rules = serde_json::from_str(
-        &fs::read_to_string("rules.json").expect("Failed to read rules.json")
+        &fs::read_to_string("rules.json").expect("Failed to read rules.json"),
     ).expect("Failed to parse rules.json");
 
-    let now = Instant::now();
-    let input = io::read_raw_video(input_path).expect("Failed to read input");
-    let frames = compositor::composite_frames(&input.frames, &rules, (input.width, input.height));
+    let timer = Instant::now();
 
-    // Write back to raw binary
-    write::write_raw_video(output_path, rules.size[0], rules.size[1], &frames)
-        .expect("Failed to write output");
-    println!("Done in {:.2?}", now.elapsed());
+    // mmap the input once
+    let input_video = read_raw_video_mmap(input_path).expect("Failed to mmap input");
 
-    /* dir for png frames to be stitched together with ffmpeg */
-    //let png_output_dir = "frames";
-    
-    /* Write PNGs for ffmpeg */
-    //write::write_frames_as_pngs(png_output_dir, rules.size[0], rules.size[1], &frames)
-    //    .expect("Failed to write PNG frames");
+    // recomposite
+    let frames = compositor::composite_frames(&input_video, &rules);
 
+    // write output
+    write::write_raw_video(
+        output_path,
+        rules.size[0],       // output width
+        rules.size[1],       // output height
+        &frames,
+    ).expect("Failed to write output");
+
+    println!("Done in {:.2?}", timer.elapsed());
+
+    // ── optional PNG export ───────────────────────────────
+    // write::write_frames_as_pngs(png_output_dir, rules.size[0], rules.size[1], &frames)
+    //     .expect("Failed to write PNG frames");
 }
 

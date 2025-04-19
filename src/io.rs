@@ -1,29 +1,48 @@
+use memmap2::Mmap;
 use std::fs::File;
-use std::io::{self, Read, BufReader};
-use byteorder::{ReadBytesExt, BigEndian};
+use std::io::{self, Cursor};
+use byteorder::{BigEndian, ReadBytesExt};
 
-pub struct RawVideo {
-    pub width: u32,
+pub struct MappedVideo {
+    pub width:  u32,
     pub height: u32,
-    pub frames: Vec<Vec<u8>>, // each frame is width * height * 3 bytes
+    frame_count: u32,
+    mmap: Mmap,                 // owns the bytes; nothing borrows from it
 }
 
-pub fn read_raw_video(path: &str) -> io::Result<RawVideo> {
-    let mut reader = BufReader::new(File::open(path)?);
+impl MappedVideo {
+    /// Read metadata and keep a copy of the mmap.
+    pub fn new(mmap: Mmap) -> io::Result<Self> {
+        let mut cur = Cursor::new(&mmap[..]);
 
-    let width = reader.read_u32::<BigEndian>()?;
-    let height = reader.read_u32::<BigEndian>()?;
-    let frame_count = reader.read_u32::<BigEndian>()?;
+        let width       = cur.read_u32::<BigEndian>()?;
+        let height      = cur.read_u32::<BigEndian>()?;
+        let frame_count = cur.read_u32::<BigEndian>()?;
 
-    let frame_size = (width * height * 3) as usize;
-    let mut frames = Vec::with_capacity(frame_count as usize);
-
-    for _ in 0..frame_count {
-        let mut buf = vec![0u8; frame_size];
-        reader.read_exact(&mut buf)?;
-        frames.push(buf);
+        Ok(Self { width, height, frame_count, mmap })
     }
 
-    Ok(RawVideo { width, height, frames })
+    /// Total number of frames.
+    #[inline]
+    pub fn frames(&self) -> u32 { self.frame_count }
+
+    /// Borrow frame *i* (zero‑based) as a slice.
+    #[inline]
+    pub fn frame(&self, i: u32) -> &[u8] {
+        assert!(i < self.frame_count, "frame index out of bounds");
+
+        let frame_size = (self.width * self.height * 3) as usize;
+        let header_len = 12;
+        let offset     = header_len + i as usize * frame_size;
+        &self.mmap[offset .. offset + frame_size]
+    }
+}
+
+pub fn read_raw_video_mmap(path: &str) -> io::Result<MappedVideo> {
+    let file = File::open(path)?;
+    // SAFETY: read‑only map of a file that stays open for the life of the
+    // `MappedVideo`.
+    let mmap = unsafe { Mmap::map(&file)? };
+    MappedVideo::new(mmap)
 }
 

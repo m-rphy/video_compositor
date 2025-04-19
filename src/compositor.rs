@@ -1,21 +1,19 @@
-use crate::types::*;
+use crate::{types::*, io::MappedVideo};
 use rayon::prelude::*;
 
-pub fn composite_frames(
-    input: &[Vec<u8>],
-    rules: &Rules,
-    input_dims: (u32, u32),
-) -> Vec<Vec<u8>> {
-    let (in_width, in_height) = input_dims;
-    let out_width = rules.size[0] as usize;
-    let out_height = rules.size[1] as usize;
-    let frame_size = out_width * out_height * 3;
+/// Returns the recomposited frames as owned `Vec<u8>` buffers
+/// (you still need owned data for the output file).
+pub fn composite_frames(video: &MappedVideo, rules: &Rules) -> Vec<Vec<u8>> {
+    let out_width   = rules.size[0] as usize;
+    let out_height  = rules.size[1] as usize;
+    let frame_size  = out_width * out_height * 3;
 
-    // Sort rules by z-index
+    // sort rules once
     let mut rules_sorted = rules.rects.clone();
     rules_sorted.sort_by_key(|r| r.z);
 
-    input.par_iter().map(|frame| {
+    (0..video.frames()).into_par_iter().map(|idx| {
+        let frame = video.frame(idx);          // borrow on demand
         let mut out = vec![0u8; frame_size];
 
         for rule in &rules_sorted {
@@ -30,22 +28,20 @@ pub fn composite_frames(
                     let dst_x = (dx + x) as usize;
                     let dst_y = (dy + y) as usize;
 
-                    if src_x >= in_width as usize || src_y >= in_height as usize { continue; }
+                    if src_x >= video.width  as usize || src_y >= video.height as usize { continue; }
                     if dst_x >= out_width || dst_y >= out_height { continue; }
 
-                    let src_i = (src_y * in_width as usize + src_x) * 3;
+                    let src_i = (src_y * video.width  as usize + src_x) * 3;
                     let dst_i = (dst_y * out_width + dst_x) * 3;
 
                     for c in 0..3 {
-                        let src_val = frame[src_i + c] as f32;
-                        let dst_val = out[dst_i + c] as f32;
-                        let blended = (src_val * alpha + dst_val * (1.0 - alpha)).min(255.0);
-                        out[dst_i + c] = blended as u8;
+                        let s = frame[src_i + c] as f32;
+                        let d = out[dst_i + c] as f32;
+                        out[dst_i + c] = (s * alpha + d * (1.0 - alpha)).min(255.0) as u8;
                     }
                 }
             }
         }
-
         out
     }).collect()
 }
